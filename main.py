@@ -468,3 +468,8 @@ def main():
 if __name__ == '__main__':
     main()
 
+if __name__ == '__main__':
+  # Use PORT environment variable if available, or default to 5000
+  port = int(os.environ.get('PORT', 5000))
+
+
