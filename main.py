@@ -399,19 +399,18 @@ async def purchase(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=reply_markup
     )
 
-def run_flask_app():
-    app = Flask(__name__)
 
-    @app.route('/')
-    def hello_world():
-        return 'Hello, World!'
+# Define the Flask app globally
+app = Flask(__name__)
 
-    @app.route('/process', methods=['POST'])
-    def process_file():
-        file = request.files['file']
-        return jsonify({"message": "File processed successfully!", "filename": file.filename})
+@app.route('/')
+def hello_world():
+    return 'Hello, World!'
 
-    app.run(host='0.0.0.0', port=7860)
+@app.route('/process', methods=['POST'])
+def process_file():
+    file = request.files['file']
+    return jsonify({"message": "File processed successfully!", "filename": file.filename})
 
 def main():
     print("Starting bot...")
@@ -465,11 +464,10 @@ def main():
     except Exception as e:
         print(f"Critical error in main: {e}")
 
+def run_flask_app():
+    # Use PORT environment variable if available, or default to 5000
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=7860)
+
 if __name__ == '__main__':
     main()
-
-if __name__ == '__main__':
-  # Use PORT environment variable if available, or default to 5000
-  port = int(os.environ.get('PORT', 5000))
-
-
