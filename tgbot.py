@@ -368,7 +368,7 @@ async def confirm_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                     # Extract the password from the headers
                     password = response.headers.get('X-Password')
                     if not password:
-                        await query.edit_message_text("❌ Invalid response from the server. Missing password in headers.")
+                        logger.error("Invalid response from the server. Missing password in headers.")
                         context.user_data['processing'] = False
                         return ConversationHandler.END
 
@@ -396,18 +396,17 @@ async def confirm_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                     context.user_data['processing'] = False
                     return ConversationHandler.END
                 else:
-                    await query.edit_message_text("❌ Error occurred while processing the file.")
+                    logger.error("Error occurred while processing the file.")
                     context.user_data['processing'] = False
                     return ConversationHandler.END
 
             except requests.exceptions.Timeout:
-                await query.edit_message_text("❌ The server took too long to respond. Please try again later.")
+                logger.error("The server took too long to respond.")
                 context.user_data['processing'] = False
                 return ConversationHandler.END
 
             except Exception as e:
                 logger.error(f"Error in confirm_file: {e}")
-                await query.edit_message_text(text="❌ An unexpected error occurred. Please try again later.")
                 context.user_data['processing'] = False
                 if os.path.exists(file_path):
                     os.remove(file_path)
@@ -415,7 +414,6 @@ async def confirm_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
         except Exception as e:
             logger.error(f"Error in confirm_file: {e}")
-            await query.edit_message_text(text="❌ An unexpected error occurred. Please try again later.")
             context.user_data['processing'] = False
             if os.path.exists(file_path):
                 os.remove(file_path)
