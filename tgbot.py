@@ -263,6 +263,7 @@ async def admin_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 async def crypt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Crypt command handler."""
+    logger.info(f"/crypt command triggered by user {update.effective_user.id}")
     user_id = update.effective_user.id
     
     if 'processing' in context.user_data and context.user_data['processing']:
