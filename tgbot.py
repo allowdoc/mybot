@@ -127,7 +127,6 @@ async def get_premium_expiry(user_id: int) -> Optional[datetime]:
         return None
 
 # Command handlers
-# Command handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Start command handler."""
     if 'processing' in context.user_data and context.user_data['processing']:
@@ -165,6 +164,7 @@ async def handle_menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await cancel(update, context)
     else:
         await update.message.reply_text("Invalid option. Please use the menu buttons.")
+
 # Cancel command handler
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancel command handler."""
@@ -180,6 +180,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         "Operation cancelled. Use /crypt to start again."
     )
     return ConversationHandler.END
+
 # Admin command handlers
 async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Admin command handler."""
@@ -554,4 +555,4 @@ def main():
         
         
 if __name__ == '__main__':
-    main()        
+    main()
