@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import sys
 import logging
 import time
+import threading
 from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ConversationHandler, ContextTypes
@@ -48,7 +49,7 @@ os.makedirs("converted", exist_ok=True)
 # Conversation states
 WAITING_FOR_FILE, CONFIRM_FILE = range(2)
 ADMIN_CHAT_ID, ADMIN_DURATION, ADMIN_CONFIRM = range(2, 5)
-MESSAGE_INPUT, MESSAGE_CONFIRM = range(5, 7)  # New states for /message command
+MESSAGE_INPUT, MESSAGE_CONFIRM = range(5, 7)
 
 # Duration options for premium access
 DURATION_OPTIONS = {
@@ -61,6 +62,9 @@ DURATION_OPTIONS = {
 
 # Number of retries for API requests
 MAX_RETRIES = 3
+
+# Thread-safe processing flag
+processing_lock = threading.Lock()
 
 # Database functions
 async def is_premium_user(user_id: int) -> bool:
