@@ -499,46 +499,64 @@ async def purchase(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=reply_markup
     )
 
-# Add this function to handle the /message command
+
+# Add the new conversation states
+MESSAGE_INPUT, MESSAGE_CONFIRM = range(5, 7)
+
+# Add the new command handlers
 async def message_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Hidden command to send a message to all bot users."""
+    """Handler for the /message command."""
     user_id = update.effective_user.id
     if user_id != ADMIN_ID:
         await update.message.reply_text("⚠️ You are not authorized to use this command.")
         return ConversationHandler.END
     
-    await update.message.reply_text("Please enter the message you want to send to all users:")
-    return WAITING_FOR_MESSAGE
+    await update.message.reply_text("Please enter the message you want to send to all active users:")
+    return MESSAGE_INPUT
 
 async def handle_message_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle the message input and send it to all users."""
+    """Handle the message input from the admin."""
     message_text = update.message.text
-    user_id = update.effective_user.id
+    context.user_data['broadcast_message'] = message_text
     
-    if user_id != ADMIN_ID:
-        await update.message.reply_text("⚠️ You are not authorized to use this command.")
-        return ConversationHandler.END
+    keyboard = [
+        [InlineKeyboardButton("✅ Yes", callback_data="confirm_yes")],
+        [InlineKeyboardButton("❌ No", callback_data="confirm_no")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Fetch all user IDs from the database
-    users = users_collection.find({}, {'user_id': 1})
-    user_ids = [user['user_id'] for user in users]
+    await update.message.reply_text(
+        f"Are you sure you want to send this message to all active users?\n\n{message_text}",
+        reply_markup=reply_markup
+    )
+    return MESSAGE_CONFIRM
+
+async def confirm_message_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle the confirmation of the message broadcast."""
+    query = update.callback_query
+    await query.answer()
     
-    # Send the message to all users
-    for uid in user_ids:
-        try:
-            await context.bot.send_message(chat_id=uid, text=message_text)
-        except BadRequest as e:
-            logger.error(f"Failed to send message to user {uid}: {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error while sending message to user {uid}: {e}")
+    if query.data == "confirm_yes":
+        message_text = context.user_data['broadcast_message']
+        
+        # Get all active users from the database
+        active_users = users_collection.find({})
+        
+        for user in active_users:
+            user_id = user['user_id']
+            try:
+                await context.bot.send_message(chat_id=user_id, text=message_text)
+                logger.info(f"Message sent to user {user_id}.")
+            except Exception as e:
+                logger.error(f"Failed to send message to user {user_id}: {e}")
+        
+        await query.edit_message_text("✅ Message sent to all active users.")
+    else:
+        await query.edit_message_text("❌ Message broadcast cancelled.")
     
-    await update.message.reply_text("✅ Message sent to all users.")
     return ConversationHandler.END
 
-# Add this state to your existing states
-WAITING_FOR_MESSAGE = 5
-
-# Update your main function to include the new conversation handler
+# In the main() function, add the new conversation handler
 def main():
     """Main function to start the bot."""
     print("Starting bot...")
@@ -576,11 +594,12 @@ def main():
             per_message=False
         )
 
-        # Add the message command conversation handler
+        # Add the message broadcast conversation handler
         message_handler = ConversationHandler(
             entry_points=[CommandHandler('message', message_command)],
             states={
-                WAITING_FOR_MESSAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message_input)]
+                MESSAGE_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message_input)],
+                MESSAGE_CONFIRM: [CallbackQueryHandler(confirm_message_broadcast, pattern=r'^confirm_')]
             },
             fallbacks=[CommandHandler('cancel', cancel)],
             per_message=False
@@ -589,7 +608,7 @@ def main():
         # Add all handlers
         application.add_handler(admin_handler)
         application.add_handler(conv_handler)
-        application.add_handler(message_handler)
+        application.add_handler(message_handler)  # Add the new message handler
         application.add_handler(CommandHandler('start', start))  # Add start command handler
         application.add_handler(CommandHandler('check', check))
         application.add_handler(CommandHandler('cancel', cancel))  # Add cancel command handler
@@ -602,6 +621,60 @@ def main():
 
     except Exception as e:
         logger.critical(f"Critical error in main: {e}")
+        
+def main():
+    """Main function to start the bot."""
+    print("Starting bot...")
+    try:
+        # Create the Application
+        application = Application.builder().token(API_TOKEN).build()
+
+        # Add handlers for the new commands
+        application.add_handler(CommandHandler('contact', contact))
+        application.add_handler(CommandHandler('purchase', purchase))
+
+        # Add premium management conversation handler
+        admin_handler = ConversationHandler(
+            entry_points=[CommandHandler('admin', admin)],
+            states={
+                ADMIN_CHAT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_chat_id)],
+                ADMIN_DURATION: [CallbackQueryHandler(admin_duration, pattern=r'^duration_')],
+                ADMIN_CONFIRM: [CallbackQueryHandler(admin_confirm, pattern=r'^confirm_')]
+            },
+            fallbacks=[CommandHandler('cancel', cancel)],  # Add cancel as a fallback
+            per_message=False
+        )
+
+        # Add the main conversation handler for the encryption process
+        conv_handler = ConversationHandler(
+            entry_points=[
+                CommandHandler('crypt', crypt),  # Handle /crypt command
+                MessageHandler(filters.Text(['🔐 Start Encrypt']), crypt)  # Handle menu button
+            ],
+            states={
+                WAITING_FOR_FILE: [MessageHandler(filters.Document.ALL, handle_file)],  # Handle file uploads
+                CONFIRM_FILE: [CallbackQueryHandler(confirm_file)]  # Handle file confirmation
+            },
+            fallbacks=[CommandHandler('cancel', cancel)],  # Handle /cancel command
+            per_message=False
+        )
+
+        # Add all handlers
+        application.add_handler(admin_handler)
+        application.add_handler(conv_handler)
+        application.add_handler(CommandHandler('start', start))  # Add start command handler
+        application.add_handler(CommandHandler('check', check))
+        application.add_handler(CommandHandler('cancel', cancel))  # Add cancel command handler
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_buttons))  # Add menu button handler
+        application.add_error_handler(error_handler)
+
+        # Start the bot
+        print("Bot is running. Press Ctrl+C to stop.")
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+    except Exception as e:
+        logger.critical(f"Critical error in main: {e}")
+        
         
 if __name__ == '__main__':
     main()
