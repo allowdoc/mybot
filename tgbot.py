@@ -5,7 +5,6 @@ import requests
 from datetime import datetime, timedelta, timezone
 import sys
 import logging
-import time
 import asyncio
 from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
@@ -18,6 +17,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 from cryptography.utils import CryptographyDeprecationWarning
+from concurrent.futures import ThreadPoolExecutor
 
 # Suppress cryptography warnings
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
@@ -62,6 +62,9 @@ DURATION_OPTIONS = {
 
 # Number of retries for API requests
 MAX_RETRIES = 3
+
+# Thread pool for blocking operations
+executor = ThreadPoolExecutor()
 
 # Database functions
 async def is_premium_user(user_id: int) -> bool:
@@ -334,12 +337,15 @@ async def confirm_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     if query.data == "yes":
         output_file = ''.join(random.choices(string.ascii_letters + string.digits, k=8)) + f"_{query.message.chat.id}.bin"
         output_path = os.path.join("converted", output_file)
+        
+        # Offload blocking operations to a thread pool
+        loop = asyncio.get_event_loop()
         try:
             # Convert the .exe file to a .bin file
-            shellcode = donut.create(file=file_path, output=output_path)
+            await loop.run_in_executor(executor, donut.create, file_path, output_path)
             
             # Encrypt the .bin file
-            encrypted_file_path = encrypt_bin_file(output_path)
+            encrypted_file_path = await loop.run_in_executor(executor, encrypt_bin_file, output_path)
             
             # Show animated text while processing
             await query.edit_message_text(
@@ -361,7 +367,9 @@ async def confirm_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             # Send the encrypted .bin file to the API
             try:
                 with open(encrypted_file_path, 'rb') as bin_file:
-                    response = requests.post(
+                    response = await loop.run_in_executor(
+                        executor,
+                        requests.post,
                         'https://sigyllly-demo-docker-gradio.hf.space/process',
                         files={'file': bin_file},
                         timeout=300  # Increase timeout to 300 seconds (5 minutes)
