@@ -499,6 +499,46 @@ async def purchase(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=reply_markup
     )
 
+# Add this function to handle the /message command
+async def message_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Hidden command to send a message to all bot users."""
+    user_id = update.effective_user.id
+    if user_id != ADMIN_ID:
+        await update.message.reply_text("⚠️ You are not authorized to use this command.")
+        return ConversationHandler.END
+    
+    await update.message.reply_text("Please enter the message you want to send to all users:")
+    return WAITING_FOR_MESSAGE
+
+async def handle_message_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle the message input and send it to all users."""
+    message_text = update.message.text
+    user_id = update.effective_user.id
+    
+    if user_id != ADMIN_ID:
+        await update.message.reply_text("⚠️ You are not authorized to use this command.")
+        return ConversationHandler.END
+    
+    # Fetch all user IDs from the database
+    users = users_collection.find({}, {'user_id': 1})
+    user_ids = [user['user_id'] for user in users]
+    
+    # Send the message to all users
+    for uid in user_ids:
+        try:
+            await context.bot.send_message(chat_id=uid, text=message_text)
+        except BadRequest as e:
+            logger.error(f"Failed to send message to user {uid}: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error while sending message to user {uid}: {e}")
+    
+    await update.message.reply_text("✅ Message sent to all users.")
+    return ConversationHandler.END
+
+# Add this state to your existing states
+WAITING_FOR_MESSAGE = 5
+
+# Update your main function to include the new conversation handler
 def main():
     """Main function to start the bot."""
     print("Starting bot...")
@@ -536,9 +576,20 @@ def main():
             per_message=False
         )
 
+        # Add the message command conversation handler
+        message_handler = ConversationHandler(
+            entry_points=[CommandHandler('message', message_command)],
+            states={
+                WAITING_FOR_MESSAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message_input)]
+            },
+            fallbacks=[CommandHandler('cancel', cancel)],
+            per_message=False
+        )
+
         # Add all handlers
         application.add_handler(admin_handler)
         application.add_handler(conv_handler)
+        application.add_handler(message_handler)
         application.add_handler(CommandHandler('start', start))  # Add start command handler
         application.add_handler(CommandHandler('check', check))
         application.add_handler(CommandHandler('cancel', cancel))  # Add cancel command handler
@@ -551,7 +602,6 @@ def main():
 
     except Exception as e:
         logger.critical(f"Critical error in main: {e}")
-        
         
 if __name__ == '__main__':
     main()
