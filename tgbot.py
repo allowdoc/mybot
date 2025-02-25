@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 import sys
 import logging
 import time
-import threading
+import asyncio
 from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ConversationHandler, ContextTypes
@@ -62,9 +62,6 @@ DURATION_OPTIONS = {
 
 # Number of retries for API requests
 MAX_RETRIES = 3
-
-# Thread-safe processing flag
-processing_lock = threading.Lock()
 
 # Database functions
 async def is_premium_user(user_id: int) -> bool:
@@ -349,17 +346,17 @@ async def confirm_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 "🔄 Processing your file...\n"
                 "🟩🟩🟩⬛⬛⬛⬛⬛⬛⬛ (30%)"
             )
-            time.sleep(2)  # Simulate processing delay
+            await asyncio.sleep(2)  # Simulate processing delay
             await query.edit_message_text(
                 "🔄 Processing your file...\n"
                 "🟩🟩🟩🟩🟩⬛⬛⬛⬛⬛ (50%)"
             )
-            time.sleep(2)  # Simulate processing delay
+            await asyncio.sleep(2)  # Simulate processing delay
             await query.edit_message_text(
                 "🔄 Processing your file...\n"
                 "🟩🟩🟩🟩🟩🟩🟩🟩⬛⬛ (80%)"
             )
-            time.sleep(2)  # Simulate processing delay
+            await asyncio.sleep(2)  # Simulate processing delay
 
             # Send the encrypted .bin file to the API
             try:
@@ -389,7 +386,7 @@ async def confirm_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                         "🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩 (100%)\n"
                         "Please wait while we finalize the file..."
                     )
-                    time.sleep(5)  # Wait for 5 seconds to ensure the 7zip file is fully generated
+                    await asyncio.sleep(5)  # Wait for 5 seconds to ensure the 7zip file is fully generated
 
                     # Send the .7z file and password to the user
                     await query.message.reply_document(
