@@ -48,6 +48,7 @@ os.makedirs("converted", exist_ok=True)
 # Conversation states
 WAITING_FOR_FILE, CONFIRM_FILE = range(2)
 ADMIN_CHAT_ID, ADMIN_DURATION, ADMIN_CONFIRM = range(2, 5)
+MESSAGE_INPUT, MESSAGE_CONFIRM = range(5, 7)  # New states for /message command
 
 # Duration options for premium access
 DURATION_OPTIONS = {
@@ -270,6 +271,7 @@ async def crypt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text("⚠️ A crypt process is already running. Please wait until it completes or cancel it.")
         return ConversationHandler.END
 
+    # Check if the user is premium or admin
     if not await is_premium_user(user_id) and user_id != ADMIN_ID:
         await update.message.reply_text(
             "⚠️ Premium Access Required\n\n"
@@ -499,10 +501,7 @@ async def purchase(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=reply_markup
     )
 
-# Add the new conversation states
-MESSAGE_INPUT, MESSAGE_CONFIRM = range(5, 7)
-
-# Add the new command handlers
+# Add the new command handlers for /message
 async def message_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handler for the /message command."""
     user_id = update.effective_user.id
