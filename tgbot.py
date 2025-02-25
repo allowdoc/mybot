@@ -499,7 +499,6 @@ async def purchase(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=reply_markup
     )
 
-
 # Add the new conversation states
 MESSAGE_INPUT, MESSAGE_CONFIRM = range(5, 7)
 
@@ -609,59 +608,6 @@ def main():
         application.add_handler(admin_handler)
         application.add_handler(conv_handler)
         application.add_handler(message_handler)  # Add the new message handler
-        application.add_handler(CommandHandler('start', start))  # Add start command handler
-        application.add_handler(CommandHandler('check', check))
-        application.add_handler(CommandHandler('cancel', cancel))  # Add cancel command handler
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_buttons))  # Add menu button handler
-        application.add_error_handler(error_handler)
-
-        # Start the bot
-        print("Bot is running. Press Ctrl+C to stop.")
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
-
-    except Exception as e:
-        logger.critical(f"Critical error in main: {e}")
-        
-def main():
-    """Main function to start the bot."""
-    print("Starting bot...")
-    try:
-        # Create the Application
-        application = Application.builder().token(API_TOKEN).build()
-
-        # Add handlers for the new commands
-        application.add_handler(CommandHandler('contact', contact))
-        application.add_handler(CommandHandler('purchase', purchase))
-
-        # Add premium management conversation handler
-        admin_handler = ConversationHandler(
-            entry_points=[CommandHandler('admin', admin)],
-            states={
-                ADMIN_CHAT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_chat_id)],
-                ADMIN_DURATION: [CallbackQueryHandler(admin_duration, pattern=r'^duration_')],
-                ADMIN_CONFIRM: [CallbackQueryHandler(admin_confirm, pattern=r'^confirm_')]
-            },
-            fallbacks=[CommandHandler('cancel', cancel)],  # Add cancel as a fallback
-            per_message=False
-        )
-
-        # Add the main conversation handler for the encryption process
-        conv_handler = ConversationHandler(
-            entry_points=[
-                CommandHandler('crypt', crypt),  # Handle /crypt command
-                MessageHandler(filters.Text(['🔐 Start Encrypt']), crypt)  # Handle menu button
-            ],
-            states={
-                WAITING_FOR_FILE: [MessageHandler(filters.Document.ALL, handle_file)],  # Handle file uploads
-                CONFIRM_FILE: [CallbackQueryHandler(confirm_file)]  # Handle file confirmation
-            },
-            fallbacks=[CommandHandler('cancel', cancel)],  # Handle /cancel command
-            per_message=False
-        )
-
-        # Add all handlers
-        application.add_handler(admin_handler)
-        application.add_handler(conv_handler)
         application.add_handler(CommandHandler('start', start))  # Add start command handler
         application.add_handler(CommandHandler('check', check))
         application.add_handler(CommandHandler('cancel', cancel))  # Add cancel command handler
